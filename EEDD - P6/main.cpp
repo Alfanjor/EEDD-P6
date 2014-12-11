@@ -13,6 +13,7 @@
 #include <utility>
 #include <map>
 #include <unordered_map>
+#include <stdlib.h>
 
 #include "tinythread.h"
 #include "millisleep.h"
@@ -77,46 +78,6 @@ public:
 //            it++;
 //        }
         
-//        int pArtista = 0, pTitulo = 0;
-//        
-//        // Construcción de las tablas de dispersión
-//        for (int i = 0; i < vCanciones.size(); ++i) {
-//            
-//            string artista, titulo;
-//            string lineArtist = vCanciones[i].GetArtist();
-//            string lineTittle = vCanciones[i].GetTitle();
-//            stringstream lineStreamArtist(lineArtist);
-//            stringstream lineStreamTittle(lineTittle);
-//            
-//            while (getline(lineStreamArtist, artista, ' ')) {
-//                for (int x = 0; x < artista.size(); x++)
-//                    artista[x] = tolower(artista[x]);
-//                
-//                long key = djb2((char*) artista.c_str());
-//                ItemCancion *p = tablaAutores.search(key);
-//                if (!p) {
-//                    if (!tablaAutores.insert(key, ItemCancion(artista, &vCanciones[i])))
-//                        cout << "Demasiadas colisiones para pArtista: " << artista << " en la canción " << i << endl;
-//                    pArtista++;
-//                } else
-//                    p->addSong(&vCanciones[i]);
-//            };
-//            
-//            while (getline(lineStreamTittle, titulo, ' ')) {
-//                for (int x = 0; x < titulo.size(); x++)
-//                    titulo[x] = tolower(titulo[x]);
-//                
-//                long key = djb2((char*) titulo.c_str());
-//                ItemCancion *p = tablaTitulos.search(key);
-//                if (!p) {
-//                    if(!tablaTitulos.insert(key, ItemCancion(titulo, &vCanciones[i])))
-//                        cout << "Demasiadas colisiones para pTitulo: " << titulo << " en la canción " << i << endl;
-//                    pTitulo++;
-//                } else
-//                    p->addSong(&vCanciones[i]);
-//            };
-//        };
-//        
     };
 
     void reproducirCanciones() {
@@ -141,6 +102,13 @@ public:
                 
                 // Simular el tiempo de reproducción de la canción (entre 2 y 12 seg.)
                 millisleep(2000 + 1000 * (rand() % 10));
+                
+            }
+            
+            //Reproducir al azar si la lista de peticiones se vacía
+            if (vPeticiones.size() < 5) {
+                Request peticion((rand()%499)+1);
+                vPeticiones.push_back(peticion);
             }
             
         } while (pinchar);
@@ -228,19 +196,13 @@ public:
             if (!reproducida) {
                 semaforo.lock();
             
-                //Comprobar que se ha introducido alguna canción
-                if (cancion > 1 && cancion < 500) {
-                    //Comprobar si es la primera petición que introducimos (vacío)
-                    if (!vPeticiones.empty()) {
-                        vPeticiones.push_back(peticion);
-                    } else 
-                        vPeticiones.push_back(peticion);
-                }
+                //Comprobar que realmente se ha introducido alguna canción
+                if (cancion > 1 && cancion < 500) 
+                    vPeticiones.push_back(peticion);
 
                 semaforo.unlock();
-
             }
-
+            
         } while (letra != "S");
         
         pinchar = false;
