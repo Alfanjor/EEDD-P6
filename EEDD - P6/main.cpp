@@ -12,6 +12,7 @@
 #include <cctype>
 #include <utility>
 #include <map>
+#include <unordered_map>
 
 #include "tinythread.h"
 #include "millisleep.h"
@@ -30,7 +31,7 @@ class RadioApp {
     map<int, Song> vCanciones2;
     
     vector<Request>  vPeticiones;
-    vector<Song>     vCanciones;
+    vector<int> historico;       //Historico con los códigos de las canciones que ya se han reproducido
 
     /* Tamaño de tablas según factor de carga:
         70%
@@ -49,6 +50,7 @@ class RadioApp {
         El primo más cercano a 410*1.9=779 es: 773
         El primo más cercano a 821*1.9=1559.9 es: 1553
      */
+    
     TableHash<ItemCancion, 691>  tablaAutores;
     TableHash<ItemCancion, 1381> tablaTitulos;
    
@@ -68,11 +70,12 @@ public:
         
         CargarListaCaciones(vCanciones2);
         
-        map<int, Song>::iterator it = vCanciones2.begin();
-        while (it != vCanciones2.end()) {
-            cout << it->first << " - " << it->second.GetTitle() << " - " << it->second.GetArtist() << endl;
-            it++;
-        }
+        //Mostrar lista de canciones
+//        map<int, Song>::iterator it = vCanciones2.begin();
+//        while (it != vCanciones2.end()) {
+//            cout << it->first << " - " << it->second.GetTitle() << " - " << it->second.GetArtist() << endl;
+//            it++;
+//        }
         
 //        int pArtista = 0, pTitulo = 0;
 //        
@@ -126,15 +129,17 @@ public:
                 semaforo.lock();
                 // Coge la que tenga más prioridad (última)
                 int cancion = vPeticiones.back().getCod();
+                historico.push_back(cancion);
                 vPeticiones.pop_back();
                 semaforo.unlock();
                 
-                cout << "Reproduciendo canción " << 
-                        vCanciones[cancion - 1].GetTitle() << 
-                        " de " << vCanciones[cancion - 1].GetArtist() <<
-                        "... (" << vCanciones[cancion - 1].GetCode() << ")" << endl;
-                // Simular el tiempo de reproducción de la canción (entre 2 y 12 seg.)
                 
+                cout << "Reproduciendo canción " << 
+                        vCanciones2[cancion].GetTitle() << 
+                        " de " << vCanciones2[cancion].GetArtist() <<
+                        "... (" << vCanciones2[cancion].GetCode() << ")" << endl;
+                
+                // Simular el tiempo de reproducción de la canción (entre 2 y 12 seg.)
                 millisleep(2000 + 1000 * (rand() % 10));
             }
             
@@ -142,31 +147,101 @@ public:
     }
 
     void solicitarCanciones() {
-        int cancion; //Código de la canción que se añadirá a vPeticiones
+        int cancion;
         
-        cout << "¡Bienvenido a Radionauta v4!" << endl;
-        cout << "Introduce el código de la canción que quieres reproducir:" 
-                << endl;        
+        cout << "¡Bienvenido a Radionauta v6!" << endl;
         
-        // Pedir canciones hasta que se introduce "0"
+        string letra;
+        // Pedir canciones hasta que se introduce "S"
         do {
-            cin >> cancion;
+            cout << "\nIntroduce C para código de canción." << endl;
+            cout << "Introduce A ó T para buscar la canción deseada" << endl;
+            cout << "Introduce S para Salir." << endl;
+            cin >> letra;
 
-            //Asegurarse de que la canción introducida es válida
-            while (cancion < 0 || cancion > vCanciones.size()) {
+            while (letra != "C" && letra != "A" && letra != "T" && letra != "S") {
                 cin.clear();
                 cin.ignore(100, '\n');
-                cout << "Lo sentimos, no disponemos de esa canción." << endl;
+                cout << "\nPor favor, 'C' para Código, 'A' o 'T' para buscar."
+                        << endl;
+                cout << "'S' para salir: ";
+                cin >> letra;
+            }
+
+            if (letra == "C") {
+                cout << "Introduzca el código de la canción que quiere introducir" 
+                        << endl;
                 cin >> cancion;
+            } else if (letra == "A" || letra == "T"){ 
+                cout << "Introuce la palabra que quieres buscar: ";
+                string palabra_buscada;
+                
+                //=================ESTO ES LO INTERESANTE===============//
+                // Forma de buscar palabras (SIEMPRE EN MINUSCULA)
+
+                //Pasar lo que buscamos a minúscula
+                cin >> palabra_buscada;
+                for (int x = 0; x < palabra_buscada.size(); x++)
+                            palabra_buscada[x] = tolower(palabra_buscada[x]);
+                ItemCancion *p;
+                
+                
+                if (letra == "A")
+                    p = tablaAutores.search(djb2((char*) palabra_buscada.c_str()));
+                else
+                    p = tablaTitulos.search(djb2((char*) palabra_buscada.c_str()));
+                
+                if (p) {
+                    vector<Song*> *songs = p->getSongs();
+                    cout << endl;
+                    cout << "Canciones con la palabra " << palabra_buscada << endl;
+                    for (int i = 0; i < songs->size(); i++)
+                        cout << songs->at(i)->GetCode() << " - " <<
+                                songs->at(i)->GetArtist() << " - " <<
+                                songs->at(i)->GetTitle() << endl;
+                    cout << "Introduce el código de la canción deseada: ";
+                    cin >> cancion;
+                } else {
+                    cout << "\n No hay canciones con la palabra " << palabra_buscada << endl;;
+                    
+                    //Para que no la de por repetida al no introducir nada
+                    cancion = 0; 
+                }
+            } 
+
+            Request peticion(cancion);
+            
+            // Comprobamos que no haya sido de las 100 últimas reproducidas
+            int j = 0;
+            bool reproducida = false;
+
+            while (j < historico.size() && j < 100 && !reproducida) {
+                if (historico[j] == cancion) {
+                    cout << "La canción " << cancion 
+                            <<  " fue de las últimas 100 reproducidas" << endl;
+                    reproducida=true;
+                }
+                j++;
             }
             
-            semaforo.lock();
-            //Código fuente para añadir canciones a vPeticiones
-            Request peticion(cancion); 
-            vPeticiones.push_back(peticion);            
-            semaforo.unlock();
+            //Si no lo ha sido, podemos continuar
+            if (!reproducida) {
+                semaforo.lock();
+            
+                //Comprobar que se ha introducido alguna canción
+                if (cancion > 1 && cancion < 500) {
+                    //Comprobar si es la primera petición que introducimos (vacío)
+                    if (!vPeticiones.empty()) {
+                        vPeticiones.push_back(peticion);
+                    } else 
+                        vPeticiones.push_back(peticion);
+                }
 
-        } while (cancion != 0);
+                semaforo.unlock();
+
+            }
+
+        } while (letra != "S");
         
         pinchar = false;
         threadReproducirCanciones.join();
