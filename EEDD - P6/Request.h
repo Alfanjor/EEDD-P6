@@ -29,6 +29,9 @@ public:
     bool operator==     (const Request &orig);
     bool operator<      (const Request &orig) const;
     void operator=      (const Request &orig);
+    void print_class(ostream &st) {
+        st << "Codigo: " << _cod << " Nº de Peticiones " << _nRequest << "\n";
+    };
 };
 
 Request::Request() {
