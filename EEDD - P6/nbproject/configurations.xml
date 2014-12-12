@@ -7,7 +7,6 @@
       <itemPath>ItemCancion.h</itemPath>
       <itemPath>Request.h</itemPath>
       <itemPath>Song.h</itemPath>
-      <itemPath>TableHash.h</itemPath>
       <itemPath>fast_mutex.h</itemPath>
       <itemPath>millisleep.h</itemPath>
       <itemPath>tinythread.h</itemPath>
@@ -43,6 +42,9 @@
         <rebuildPropChanged>false</rebuildPropChanged>
       </toolsSet>
       <compileType>
+        <ccTool>
+          <standard>8</standard>
+        </ccTool>
         <linkerTool>
           <linkerLibItems>
             <linkerLibStdlibItem>PosixThreads</linkerLibStdlibItem>
@@ -54,8 +56,6 @@
       <item path="Request.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="Song.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="TableHash.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="fast_mutex.h" ex="false" tool="3" flavor2="0">
       </item>
@@ -93,8 +93,6 @@
       <item path="Request.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="Song.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="TableHash.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="fast_mutex.h" ex="false" tool="3" flavor2="0">
       </item>

@@ -10,24 +10,30 @@
 #include <vector>
 #include <fstream>
 #include <cctype>
+#include <utility>
+#include <map>
+#include <unordered_map>
+#include <stdlib.h>
 
 #include "tinythread.h"
 #include "millisleep.h"
 #include "Song.h"
 #include "Request.h"
 #include "ItemCancion.h"
-#include "TableHash.h"
 
 using namespace std;
 using namespace tthread;
 
-void CargarListaCaciones(vector<Song> &vCanciones);
+void CargarListaCaciones(map<int, Song> &map_Canciones);
 long djb2 (char *str);
+int ContarPalabras (string frase);
 
 class RadioApp {
-    vector<Request>  vPeticiones;
-    vector<Song>     vCanciones;
+    map<int, Song> map_Canciones;
     
+    vector<Request>  vPeticiones;
+    vector<int> historico;       //Historico con los códigos de las canciones que ya se han reproducido
+
     /* Tamaño de tablas según factor de carga:
         70%
         El primo más cercano a 410*1.7=697 es: 691
@@ -45,8 +51,9 @@ class RadioApp {
         El primo más cercano a 410*1.9=779 es: 773
         El primo más cercano a 821*1.9=1559.9 es: 1553
      */
-    TableHash<ItemCancion, 691>  tablaAutores;
-    TableHash<ItemCancion, 1381> tablaTitulos;
+    //unordered_map<class _Key,class _Tp,class _Hash=hash<_Key>,class _Pred=std::equal_to<_Key>,class _Alloc=std::allocator<std::pair<const _Key,_Tp> >>
+    unordered_map<long, ItemCancion> tablaAutores;
+    unordered_map<long, ItemCancion> tablaTitulos;
    
     thread  threadReproducirCanciones;
     mutex   semaforo;
@@ -61,16 +68,17 @@ public:
 
     RadioApp() : threadReproducirCanciones(hebraReproducirCanciones, this) {
         pinchar = true;
-        CargarListaCaciones(vCanciones);
+        CargarListaCaciones(map_Canciones);
         
-        int pArtista = 0, pTitulo = 0;
+        tablaAutores.reserve(691);
+        tablaTitulos.reserve(1381);
         
         // Construcción de las tablas de dispersión
-        for (int i = 0; i < vCanciones.size(); ++i) {
+        for (map<int, Song>::iterator it = map_Canciones.begin(); it != map_Canciones.end(); ++it) {
             
             string artista, titulo;
-            string lineArtist = vCanciones[i].GetArtist();
-            string lineTittle = vCanciones[i].GetTitle();
+            string lineArtist = it->second.GetArtist();
+            string lineTittle = it->second.GetTitle();
             stringstream lineStreamArtist(lineArtist);
             stringstream lineStreamTittle(lineTittle);
             
@@ -79,13 +87,12 @@ public:
                     artista[x] = tolower(artista[x]);
                 
                 long key = djb2((char*) artista.c_str());
-                ItemCancion *p = tablaAutores.search(key);
-                if (!p) {
-                    if (!tablaAutores.insert(key, ItemCancion(artista, &vCanciones[i])))
-                        cout << "Demasiadas colisiones para pArtista: " << artista << " en la canción " << i << endl;
-                    pArtista++;
+                unordered_map<long, ItemCancion>::iterator it_aux = tablaAutores.find(key);
+                if (it_aux == tablaAutores.end()) {
+                    pair<long, ItemCancion> p(key, ItemCancion(artista, &it->second));
+                    tablaAutores.insert(p);
                 } else
-                    p->addSong(&vCanciones[i]);
+                    it_aux->second.addSong(&it->second);
             };
             
             while (getline(lineStreamTittle, titulo, ' ')) {
@@ -93,42 +100,14 @@ public:
                     titulo[x] = tolower(titulo[x]);
                 
                 long key = djb2((char*) titulo.c_str());
-                ItemCancion *p = tablaTitulos.search(key);
-                if (!p) {
-                    if(!tablaTitulos.insert(key, ItemCancion(titulo, &vCanciones[i])))
-                        cout << "Demasiadas colisiones para pTitulo: " << titulo << " en la canción " << i << endl;
-                    pTitulo++;
+                unordered_map<long, ItemCancion>::iterator it_aux = tablaTitulos.find(key);
+                if (it_aux == tablaTitulos.end()) {
+                    pair<long, ItemCancion> p(key, ItemCancion(titulo, &it->second));
+                    tablaTitulos.insert(p);
                 } else
-                    p->addSong(&vCanciones[i]);
+                    it_aux->second.addSong(&it->second);
             };
         };
-        
-        cout << "Número de palabras entre Autores: " << pArtista << endl;
-        cout << "Número de palabras entre Titulos: " << pTitulo << endl;
-        cout << "Data size de al tabla de autores: " << tablaAutores.tableSize() << endl;
-        cout << "Data size de al tabla de titulos: " << tablaTitulos.tableSize() << endl;
-        
-        //=================ESTO ES LO INTERESANTE===============//
-        // Forma de buscar palabras (SIEMPRE EN MINUSCULA)
-        
-        /*
-         * Forma de pasar un string a minusculas
-         string palabra = "PALABRA";
-         for (int x = 0; x < titulo.size(); x++)
-                    titulo[x] = tolower(titulo[x]);
-         */
-        
-//        string palabra_buscada = "to";
-//        //ItemCancion *p = tablaAutores.search(djb2((char*) palabra_buscada.c_str()));
-//        ItemCancion *p = tablaTitulos.search(djb2((char*) palabra_buscada.c_str()));
-//        if (p) {
-//            vector<Song*> *songs = p->getSongs();
-//            cout << endl;
-//            cout << "Canciones con la palabra " << palabra_buscada << endl;
-//            for (int i = 0; i < songs->size(); i++)
-//                cout << songs->at(i)->GetCode() << endl;
-//        } else
-//            cout << "\n No hay canciones con la palabra " << palabra_buscada << endl;;
     };
 
     void reproducirCanciones() {
@@ -141,47 +120,139 @@ public:
                 semaforo.lock();
                 // Coge la que tenga más prioridad (última)
                 int cancion = vPeticiones.back().getCod();
+                historico.push_back(cancion);
                 vPeticiones.pop_back();
                 semaforo.unlock();
                 
-                cout << "Reproduciendo canción " << 
-                        vCanciones[cancion - 1].GetTitle() << 
-                        " de " << vCanciones[cancion - 1].GetArtist() <<
-                        "... (" << vCanciones[cancion - 1].GetCode() << ")" << endl;
-                // Simular el tiempo de reproducción de la canción (entre 2 y 12 seg.)
                 
+                cout << "\nReproduciendo canción " << 
+                        map_Canciones[cancion].GetTitle() << 
+                        " de " << map_Canciones[cancion].GetArtist() <<
+                        "... (" << map_Canciones[cancion].GetCode() << ")" << endl;
+                
+                // Simular el tiempo de reproducción de la canción (entre 2 y 12 seg.)
                 millisleep(2000 + 1000 * (rand() % 10));
+                
+            }
+            
+            //Reproducir al azar si la lista de peticiones se vacía
+            if (vPeticiones.size() < 5) {
+                Request peticion((rand()%500)+1);
+                vPeticiones.push_back(peticion);
             }
             
         } while (pinchar);
     }
 
     void solicitarCanciones() {
-        int cancion; //Código de la canción que se añadirá a vPeticiones
+        int cancion;
         
-        cout << "¡Bienvenido a Radionauta v4!" << endl;
-        cout << "Introduce el código de la canción que quieres reproducir:" 
-                << endl;        
+        cout << "¡Bienvenido a Radionauta v6!" << endl;
         
-        // Pedir canciones hasta que se introduce "0"
+        string letra;
+        // Pedir canciones hasta que se introduce "S"
         do {
-            cin >> cancion;
+            cout << "\nIntroduce C para código de canción." << endl;
+            cout << "Introduce A ó T para buscar la canción deseada" << endl;
+            cout << "Introduce S para Salir." << endl;
+            cin >> letra;
 
-            //Asegurarse de que la canción introducida es válida
-            while (cancion < 0 || cancion > vCanciones.size()) {
+            while (letra != "C" && letra != "A" && letra != "T" && letra != "S") {
                 cin.clear();
                 cin.ignore(100, '\n');
-                cout << "Lo sentimos, no disponemos de esa canción." << endl;
+                cout << "\nPor favor, 'C' para Código, 'A' o 'T' para buscar."
+                        << endl;
+                cout << "'S' para salir: ";
+                cin >> letra;
+            }
+
+            if (letra == "C") {
+                cout << "Introduzca el código de la canción que quiere introducir" 
+                        << endl;
                 cin >> cancion;
+            } else if (letra == "A" || letra == "T"){ 
+                cout << "Introuce la palabra que quieres buscar: ";
+                string frase;
+                
+                //=================ESTO ES LO INTERESANTE===============//
+                // Forma de buscar palabras (SIEMPRE EN MINUSCULA)
+
+                std::cin.ignore();
+                getline(cin,frase);
+                
+                //Pasar lo que buscamos a minúscula
+                for (int x = 0; x < frase.size(); x++)
+                            frase[x] = tolower(frase[x]);
+
+                //int num_palabras = ContarPalabras(frase);
+                
+                // Comienza la búsqueda
+                unordered_map<long, ItemCancion>::iterator it_aux;
+                string palabra;
+                stringstream ls_frase(frase);
+                
+                if (letra == "A") {
+                    while (getline(ls_frase, palabra, ' ')) {
+                        long key = djb2((char*) palabra.c_str());
+                        it_aux = tablaAutores.find(key);
+                        if (it_aux != tablaAutores.end()) {
+                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
+                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                            }
+                        } else {
+                            cout << "No se ha encontrado ninguna canción "
+                                    "para el Artista " << palabra << endl;
+                        }
+                    }
+
+                } else {
+                    while (getline(ls_frase, palabra, ' ')) {
+                        long key = djb2((char*) palabra.c_str());
+                        it_aux = tablaTitulos.find(key);
+                        if (it_aux != tablaTitulos.end()) {
+                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
+                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                            }
+                        } else {
+                            cout << "No se ha encontrado ninguna canción "
+                                    "para el Título " << palabra << endl;
+                        }
+                    }
+                }
+                
+                cout << "Introduce el código de la cancion que te interesa: ";
+                cin >> cancion;
+            } 
+
+            Request peticion(cancion);
+            
+            // Comprobamos que no haya sido de las 100 últimas reproducidas
+            int j = 0;
+            bool reproducida = false;
+
+            while (j < historico.size() && j < 100 && !reproducida) {
+                if (historico[j] == cancion) {
+                    cout << "La canción " << cancion 
+                            <<  " fue de las últimas 100 reproducidas" << endl;
+                    reproducida=true;
+                }
+                j++;
             }
             
-            semaforo.lock();
-            //Código fuente para añadir canciones a vPeticiones
-            Request peticion(cancion); 
-            vPeticiones.push_back(peticion);            
-            semaforo.unlock();
+            //Si no lo ha sido, podemos continuar
+            if (!reproducida) {
+                semaforo.lock();
+            
+                //Comprobar que realmente se ha introducido alguna canción
+                if (cancion > 1 && cancion < 500) 
+                    vPeticiones.push_back(peticion);
 
-        } while (cancion != 0);
+                semaforo.unlock();
+            }
+            
+        } while (letra != "S");
         
         pinchar = false;
         threadReproducirCanciones.join();
@@ -196,7 +267,7 @@ public:
  *                  canciones que se encuentran en el archivo de canciones para
  *                  tal fin ("canciones.txt") en el directorio del proyecto.
  */
-void CargarListaCaciones(vector<Song> &vCanciones) {
+void CargarListaCaciones(map<int, Song> &map_Canciones) {
     try {
         // Opens a file
         fstream fi("canciones.txt");
@@ -210,13 +281,14 @@ void CargarListaCaciones(vector<Song> &vCanciones) {
             while (getline(lineStream, atribute[i], '|')) {
                 i++;
             };
-
+            
             int cod = atoi(atribute[0].c_str());
-            Song s(cod, atribute[1], atribute[2]);
-            vCanciones.push_back(s);
+            pair<int, Song> pSong(cod, Song(cod, atribute[1], atribute[2]));
+            
+            map_Canciones.insert(pSong);
         }
         fi.close();
-        vCanciones.pop_back();
+        map_Canciones.erase(0);
     } catch (exception &e) {
         cout << "The file could not be open";
     }
@@ -230,37 +302,32 @@ long djb2 (char *str) {
     return hash;
 }
 
+int ContarPalabras (string frase) {
+    int nSpaces = 0;
+    unsigned int i = 0;
+
+    // Omitir espacios en blanco al principio
+    while(isspace(frase.at(i)))
+        i++;
+
+    for(; i < frase.length(); i++) {
+        if(isspace(frase.at(i))) {
+            nSpaces++;
+
+        // Omitir espacios duplicados. Si encontramos un Null, estamos al final
+        while(isspace(frase.at(i++)))
+            if(frase.at(i) == '\0')
+                nSpaces--;
+        }
+    }
+
+    // Número de pabras es el número de espacios +1
+    return nSpaces + 1;
+}
+
 int main(int argc, char** argv) {
     RadioApp app;
     app.solicitarCanciones();
-
-    
-    /* Pruebas varias, NO BORRAR
-     * 
-     * 
-    // # de palabras en Autores 410
-    // # de palabras en Titulos 821
-    cout << "70%" << endl;
-    cout << "El primo más cercano a 410*1.7=" << 410*1.7 << " es: " << getPrime(410*1.7) << endl;
-    cout << "El primo más cercano a 821*1.7=" << 821*1.7 << " es: " << getPrime(821*1.7) << endl;
-    cout << "75%" << endl;
-    cout << "El primo más cercano a 410*1.75=" << 410*1.75 << " es: " << getPrime(410*1.75) << endl;
-    cout << "El primo más cercano a 821*1.75=" << 821*1.75 << " es: " << getPrime(821*1.75) << endl;
-    cout << "80%" << endl;
-    cout << "El primo más cercano a 410*1.80=" << 410*1.8 << " es: " << getPrime(410*1.8) << endl;
-    cout << "El primo más cercano a 821*1.80=" << 821*1.8 << " es: " << getPrime(821*1.8) << endl;
-    cout << "85%" << endl;
-    cout << "El primo más cercano a 410*1.85=" << 410*1.85 << " es: " << getPrime(410*1.85) << endl;
-    cout << "El primo más cercano a 821*1.85=" << 821*1.85 << " es: " << getPrime(821*1.85) << endl;
-    cout << "90%" << endl;
-    cout << "El primo más cercano a 410*1.9=" << 410*1.9 << " es: " << getPrime(410*1.9) << endl;
-    cout << "El primo más cercano a 821*1.9=" << 821*1.9 << " es: " << getPrime(821*1.9) << endl;
-    
-    for (int i = 0; i < 1500; i++)
-        cout << ((210728963387 % 1553) + i*(1069 + 210728963387 % 1069)) % 1553 << endl;
-     * 
-     * 
-     */
     
     return 0;
 }
