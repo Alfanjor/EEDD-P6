@@ -125,7 +125,7 @@ public:
                 semaforo.unlock();
                 
                 
-                cout << "Reproduciendo canción " << 
+                cout << "\nReproduciendo canción " << 
                         map_Canciones[cancion].GetTitle() << 
                         " de " << map_Canciones[cancion].GetArtist() <<
                         "... (" << map_Canciones[cancion].GetCode() << ")" << endl;
@@ -184,45 +184,46 @@ public:
                 for (int x = 0; x < frase.size(); x++)
                             frase[x] = tolower(frase[x]);
 
-                int num_palabras = ContarPalabras(frase);
-                cout << "La cadena tiene " << num_palabras << " palabras";
-                
+                //int num_palabras = ContarPalabras(frase);
                 
                 // Comienza la búsqueda
-                long key = djb2((char*) frase.c_str());
                 unordered_map<long, ItemCancion>::iterator it_aux;
+                string palabra;
+                stringstream ls_frase(frase);
                 
                 if (letra == "A") {
-                    it_aux = tablaAutores.find(key);
-                    if (it_aux != tablaAutores.end()) {
-                        map<int, Song*> *map_canciones = it_aux->second.getSongs();
-                        for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
-                            cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                    while (getline(ls_frase, palabra, ' ')) {
+                        long key = djb2((char*) palabra.c_str());
+                        it_aux = tablaAutores.find(key);
+                        if (it_aux != tablaAutores.end()) {
+                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
+                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                            }
+                        } else {
+                            cout << "No se ha encontrado ninguna canción "
+                                    "para el Artista " << palabra << endl;
                         }
-                        
-                    cout << "Introduce el código de la cancion que te interesa: ";
-                    cin >> cancion;
-                    } else {
-                        cout << "No se ha encontrado ninguna canción." << endl;
-                        //Para que no la de por repetida al no introducir nada
-                        cancion = 0;
                     }
+
                 } else {
-                    it_aux = tablaTitulos.find(key);
-                    if (it_aux != tablaTitulos.end()) {
-                        map<int, Song*> *map_canciones = it_aux->second.getSongs();
-                        for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
-                            cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                    while (getline(ls_frase, palabra, ' ')) {
+                        long key = djb2((char*) palabra.c_str());
+                        it_aux = tablaTitulos.find(key);
+                        if (it_aux != tablaTitulos.end()) {
+                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
+                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                            }
+                        } else {
+                            cout << "No se ha encontrado ninguna canción "
+                                    "para el Título " << palabra << endl;
                         }
-                        
-                    cout << "Introduce el código de la cancion que te interesa: ";
-                    cin >> cancion;
-                    } else {
-                        cout << "No se ha encontrado ninguna canción." << endl;
-                        //Para que no la de por repetida al no introducir nada
-                        cancion = 0; 
                     }
-                }   
+                }
+                
+                cout << "Introduce el código de la cancion que te interesa: ";
+                cin >> cancion;
             } 
 
             Request peticion(cancion);
