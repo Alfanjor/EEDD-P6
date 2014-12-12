@@ -12,6 +12,7 @@
 #include <cctype>
 #include <utility>
 #include <map>
+#include <unordered_map>
 
 #include "tinythread.h"
 #include "millisleep.h"
@@ -49,6 +50,8 @@ class RadioApp {
         El primo más cercano a 410*1.9=779 es: 773
         El primo más cercano a 821*1.9=1559.9 es: 1553
      */
+    unordered_map<long, ItemCancion> tablaAutores2;
+    unordered_map<long, ItemCancion> tablaTitulos2;
     TableHash<ItemCancion, 691>  tablaAutores;
     TableHash<ItemCancion, 1381> tablaTitulos;
    
@@ -65,36 +68,30 @@ public:
 
     RadioApp() : threadReproducirCanciones(hebraReproducirCanciones, this) {
         pinchar = true;
-        
         CargarListaCaciones(vCanciones2);
         
-        map<int, Song>::iterator it = vCanciones2.begin();
-        while (it != vCanciones2.end()) {
-            cout << it->first << " - " << it->second.GetTitle() << " - " << it->second.GetArtist() << endl;
-            it++;
-        }
+        tablaAutores2.reserve(691);
         
-//        int pArtista = 0, pTitulo = 0;
-//        
-//        // Construcción de las tablas de dispersión
-//        for (int i = 0; i < vCanciones.size(); ++i) {
-//            
-//            string artista, titulo;
-//            string lineArtist = vCanciones[i].GetArtist();
-//            string lineTittle = vCanciones[i].GetTitle();
-//            stringstream lineStreamArtist(lineArtist);
-//            stringstream lineStreamTittle(lineTittle);
-//            
+        
+        int pArtista = 0, pTitulo = 0;
+        
+        // Construcción de las tablas de dispersión
+        for (map<int, Song>::iterator it = vCanciones2.begin(); it != vCanciones2.end(); ++it) {
+            
+            string artista, titulo;
+            string lineArtist = it->second.GetArtist();
+            string lineTittle = it->second.GetTitle();
+            stringstream lineStreamArtist(lineArtist);
+            stringstream lineStreamTittle(lineTittle);
+            
 //            while (getline(lineStreamArtist, artista, ' ')) {
 //                for (int x = 0; x < artista.size(); x++)
 //                    artista[x] = tolower(artista[x]);
 //                
 //                long key = djb2((char*) artista.c_str());
-//                ItemCancion *p = tablaAutores.search(key);
-//                if (!p) {
-//                    if (!tablaAutores.insert(key, ItemCancion(artista, &vCanciones[i])))
-//                        cout << "Demasiadas colisiones para pArtista: " << artista << " en la canción " << i << endl;
-//                    pArtista++;
+//                unordered_map<int, Song>::iterator it_aux = tablaAutores2.find(key);
+//                if (!it_aux) {
+//                    tablaAutores2.insert()
 //                } else
 //                    p->addSong(&vCanciones[i]);
 //            };
@@ -112,8 +109,7 @@ public:
 //                } else
 //                    p->addSong(&vCanciones[i]);
 //            };
-//        };
-//        
+        };
     };
 
     void reproducirCanciones() {
