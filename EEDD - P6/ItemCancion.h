@@ -9,7 +9,7 @@
 #define	ITEMCANCION_H
 
 #include "Song.h"
-#include <vector>
+#include <map>
 
 using namespace std;
 
@@ -17,21 +17,23 @@ class ItemCancion {
 public:
     ItemCancion             () : palabra(), canciones() {};
     ItemCancion             (string word, Song *s) : palabra(word) {
-        canciones.push_back(s);
+        pair<int, Song*> p(s->GetCode(), s);
+        canciones.insert(p);
     };
-    ItemCancion             (const ItemCancion& orig);
-    virtual         ~ItemCancion    () {};
-    bool            operator<       (const ItemCancion& orig) const;
-    bool            operator>       (const ItemCancion& orig) const;
-    bool            operator==      (const ItemCancion& orig) const;
-    void            setPalabra      (string palabra);
-    string          getPalabra      () const;
-    void            addSong         (Song *s);
-    vector<Song*> * getSongs        ();
+    
+    ItemCancion                         (const ItemCancion& orig);
+    virtual             ~ItemCancion    () {};
+    bool                operator<       (const ItemCancion& orig) const;
+    bool                operator>       (const ItemCancion& orig) const;
+    bool                operator==      (const ItemCancion& orig) const;
+    void                setPalabra      (string palabra);
+    string              getPalabra      () const;
+    void                addSong         (Song *s);
+    map<int, Song*> *   getSongs        ();
     
 private:
     string              palabra;
-    vector<Song* >      canciones;
+    map<int, Song*>     canciones;
 };
 
 ItemCancion::ItemCancion(const ItemCancion& orig) {
@@ -40,10 +42,11 @@ ItemCancion::ItemCancion(const ItemCancion& orig) {
 }
 
 void ItemCancion::addSong (Song *s) {
-    canciones.push_back(s);
+    pair<int, Song*> p(s->GetCode(), s);
+    canciones.insert(p);
 }
 
-vector<Song*> * ItemCancion::getSongs() {
+map<int, Song*> * ItemCancion::getSongs() {
     return &canciones;
 }
 

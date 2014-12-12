@@ -20,16 +20,15 @@
 #include "Song.h"
 #include "Request.h"
 #include "ItemCancion.h"
-#include "TableHash.h"
 
 using namespace std;
 using namespace tthread;
 
-void CargarListaCaciones(map<int, Song> &vCanciones2);
+void CargarListaCaciones(map<int, Song> &map_Canciones);
 long djb2 (char *str);
 
 class RadioApp {
-    map<int, Song> vCanciones2;
+    map<int, Song> map_Canciones;
     
     vector<Request>  vPeticiones;
     vector<int> historico;       //Historico con los códigos de las canciones que ya se han reproducido
@@ -51,12 +50,9 @@ class RadioApp {
         El primo más cercano a 410*1.9=779 es: 773
         El primo más cercano a 821*1.9=1559.9 es: 1553
      */
-
-    unordered_map<long, ItemCancion> tablaAutores2;
-    unordered_map<long, ItemCancion> tablaTitulos2;
-
-    TableHash<ItemCancion, 691>  tablaAutores;
-    TableHash<ItemCancion, 1381> tablaTitulos;
+    //unordered_map<class _Key,class _Tp,class _Hash=hash<_Key>,class _Pred=std::equal_to<_Key>,class _Alloc=std::allocator<std::pair<const _Key,_Tp> >>
+    unordered_map<long, ItemCancion> tablaAutores;
+    unordered_map<long, ItemCancion> tablaTitulos;
    
     thread  threadReproducirCanciones;
     mutex   semaforo;
@@ -71,15 +67,13 @@ public:
 
     RadioApp() : threadReproducirCanciones(hebraReproducirCanciones, this) {
         pinchar = true;
-        CargarListaCaciones(vCanciones2);
+        CargarListaCaciones(map_Canciones);
         
-        tablaAutores2.reserve(691);
-        
-        
-        int pArtista = 0, pTitulo = 0;
+        tablaAutores.reserve(691);
+        tablaTitulos.reserve(1381);
         
         // Construcción de las tablas de dispersión
-        for (map<int, Song>::iterator it = vCanciones2.begin(); it != vCanciones2.end(); ++it) {
+        for (map<int, Song>::iterator it = map_Canciones.begin(); it != map_Canciones.end(); ++it) {
             
             string artista, titulo;
             string lineArtist = it->second.GetArtist();
@@ -87,32 +81,42 @@ public:
             stringstream lineStreamArtist(lineArtist);
             stringstream lineStreamTittle(lineTittle);
             
-//            while (getline(lineStreamArtist, artista, ' ')) {
-//                for (int x = 0; x < artista.size(); x++)
-//                    artista[x] = tolower(artista[x]);
-//                
-//                long key = djb2((char*) artista.c_str());
-//                unordered_map<int, Song>::iterator it_aux = tablaAutores2.find(key);
-//                if (!it_aux) {
-//                    tablaAutores2.insert()
-//                } else
-//                    p->addSong(&vCanciones[i]);
-//            };
-//            
-//            while (getline(lineStreamTittle, titulo, ' ')) {
-//                for (int x = 0; x < titulo.size(); x++)
-//                    titulo[x] = tolower(titulo[x]);
-//                
-//                long key = djb2((char*) titulo.c_str());
-//                ItemCancion *p = tablaTitulos.search(key);
-//                if (!p) {
-//                    if(!tablaTitulos.insert(key, ItemCancion(titulo, &vCanciones[i])))
-//                        cout << "Demasiadas colisiones para pTitulo: " << titulo << " en la canción " << i << endl;
-//                    pTitulo++;
-//                } else
-//                    p->addSong(&vCanciones[i]);
-//            };
+            while (getline(lineStreamArtist, artista, ' ')) {
+                for (int x = 0; x < artista.size(); x++)
+                    artista[x] = tolower(artista[x]);
+                
+                long key = djb2((char*) artista.c_str());
+                unordered_map<long, ItemCancion>::iterator it_aux = tablaAutores.find(key);
+                if (it_aux == tablaAutores.end()) {
+                    pair<long, ItemCancion> p(key, ItemCancion(artista, &it->second));
+                    tablaAutores.insert(p);
+                } else
+                    it_aux->second.addSong(&it->second);
+            };
+            
+            while (getline(lineStreamTittle, titulo, ' ')) {
+                for (int x = 0; x < titulo.size(); x++)
+                    titulo[x] = tolower(titulo[x]);
+                
+                long key = djb2((char*) titulo.c_str());
+                unordered_map<long, ItemCancion>::iterator it_aux = tablaTitulos.find(key);
+                if (it_aux == tablaTitulos.end()) {
+                    pair<long, ItemCancion> p(key, ItemCancion(titulo, &it->second));
+                    tablaTitulos.insert(p);
+                } else
+                    it_aux->second.addSong(&it->second);
+            };
         };
+        
+        long key = djb2((char*) "bob");
+        unordered_map<long, ItemCancion>::iterator it_aux = tablaAutores.find(key);
+        if (it_aux != tablaAutores.end()) {
+            map<int, Song*> *map_canciones = it_aux->second.getSongs();
+            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+            }
+        } else
+            cout << "No se ha encontrado ninguna canción." << endl;
     };
 
     void reproducirCanciones() {
@@ -131,9 +135,9 @@ public:
                 
                 
                 cout << "Reproduciendo canción " << 
-                        vCanciones2[cancion].GetTitle() << 
-                        " de " << vCanciones2[cancion].GetArtist() <<
-                        "... (" << vCanciones2[cancion].GetCode() << ")" << endl;
+                        map_Canciones[cancion].GetTitle() << 
+                        " de " << map_Canciones[cancion].GetArtist() <<
+                        "... (" << map_Canciones[cancion].GetCode() << ")" << endl;
                 
                 // Simular el tiempo de reproducción de la canción (entre 2 y 12 seg.)
                 millisleep(2000 + 1000 * (rand() % 10));
@@ -142,7 +146,7 @@ public:
             
             //Reproducir al azar si la lista de peticiones se vacía
             if (vPeticiones.size() < 5) {
-                Request peticion((rand()%499)+1);
+                Request peticion((rand()%500)+1);
                 vPeticiones.push_back(peticion);
             }
             
@@ -188,28 +192,28 @@ public:
                             palabra_buscada[x] = tolower(palabra_buscada[x]);
                 ItemCancion *p;
                 
-                
-                if (letra == "A")
-                    p = tablaAutores.search(djb2((char*) palabra_buscada.c_str()));
-                else
-                    p = tablaTitulos.search(djb2((char*) palabra_buscada.c_str()));
-                
-                if (p) {
-                    vector<Song*> *songs = p->getSongs();
-                    cout << endl;
-                    cout << "Canciones con la palabra " << palabra_buscada << endl;
-                    for (int i = 0; i < songs->size(); i++)
-                        cout << songs->at(i)->GetCode() << " - " <<
-                                songs->at(i)->GetArtist() << " - " <<
-                                songs->at(i)->GetTitle() << endl;
-                    cout << "Introduce el código de la canción deseada: ";
-                    cin >> cancion;
-                } else {
-                    cout << "\n No hay canciones con la palabra " << palabra_buscada << endl;;
-                    
-                    //Para que no la de por repetida al no introducir nada
-                    cancion = 0; 
-                }
+//                
+//                if (letra == "A")
+//                    p = tablaAutores.search(djb2((char*) palabra_buscada.c_str()));
+//                else
+//                    p = tablaTitulos.search(djb2((char*) palabra_buscada.c_str()));
+//                
+//                if (p) {
+//                    vector<Song*> *songs = p->getSongs();
+//                    cout << endl;
+//                    cout << "Canciones con la palabra " << palabra_buscada << endl;
+//                    for (int i = 0; i < songs->size(); i++)
+//                        cout << songs->at(i)->GetCode() << " - " <<
+//                                songs->at(i)->GetArtist() << " - " <<
+//                                songs->at(i)->GetTitle() << endl;
+//                    cout << "Introduce el código de la canción deseada: ";
+//                    cin >> cancion;
+//                } else {
+//                    cout << "\n No hay canciones con la palabra " << palabra_buscada << endl;;
+//                    
+//                    //Para que no la de por repetida al no introducir nada
+//                    cancion = 0; 
+//                }
             } 
 
             Request peticion(cancion);
@@ -253,7 +257,7 @@ public:
  *                  canciones que se encuentran en el archivo de canciones para
  *                  tal fin ("canciones.txt") en el directorio del proyecto.
  */
-void CargarListaCaciones(map<int, Song> &vCanciones2) {
+void CargarListaCaciones(map<int, Song> &map_Canciones) {
     try {
         // Opens a file
         fstream fi("canciones.txt");
@@ -271,10 +275,10 @@ void CargarListaCaciones(map<int, Song> &vCanciones2) {
             int cod = atoi(atribute[0].c_str());
             pair<int, Song> pSong(cod, Song(cod, atribute[1], atribute[2]));
             
-            vCanciones2.insert(pSong);
+            map_Canciones.insert(pSong);
         }
         fi.close();
-        vCanciones2.erase(0);
+        map_Canciones.erase(0);
     } catch (exception &e) {
         cout << "The file could not be open";
     }

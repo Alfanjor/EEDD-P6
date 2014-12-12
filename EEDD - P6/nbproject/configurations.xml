@@ -7,7 +7,6 @@
       <itemPath>ItemCancion.h</itemPath>
       <itemPath>Request.h</itemPath>
       <itemPath>Song.h</itemPath>
-      <itemPath>TableHash.h</itemPath>
       <itemPath>fast_mutex.h</itemPath>
       <itemPath>millisleep.h</itemPath>
       <itemPath>tinythread.h</itemPath>
@@ -58,8 +57,6 @@
       </item>
       <item path="Song.h" ex="false" tool="3" flavor2="0">
       </item>
-      <item path="TableHash.h" ex="false" tool="3" flavor2="0">
-      </item>
       <item path="fast_mutex.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="main.cpp" ex="false" tool="1" flavor2="0">
@@ -96,8 +93,6 @@
       <item path="Request.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="Song.h" ex="false" tool="3" flavor2="0">
-      </item>
-      <item path="TableHash.h" ex="false" tool="3" flavor2="0">
       </item>
       <item path="fast_mutex.h" ex="false" tool="3" flavor2="0">
       </item>
