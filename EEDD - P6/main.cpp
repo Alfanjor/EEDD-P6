@@ -26,6 +26,7 @@ using namespace tthread;
 
 void CargarListaCaciones(map<int, Song> &map_Canciones);
 long djb2 (char *str);
+int ContarPalabras (string frase);
 
 class RadioApp {
     map<int, Song> map_Canciones;
@@ -107,16 +108,6 @@ public:
                     it_aux->second.addSong(&it->second);
             };
         };
-        
-        long key = djb2((char*) "bob");
-        unordered_map<long, ItemCancion>::iterator it_aux = tablaAutores.find(key);
-        if (it_aux != tablaAutores.end()) {
-            map<int, Song*> *map_canciones = it_aux->second.getSongs();
-            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
-                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
-            }
-        } else
-            cout << "No se ha encontrado ninguna canción." << endl;
     };
 
     void reproducirCanciones() {
@@ -181,39 +172,57 @@ public:
                 cin >> cancion;
             } else if (letra == "A" || letra == "T"){ 
                 cout << "Introuce la palabra que quieres buscar: ";
-                string palabra_buscada;
+                string frase;
                 
                 //=================ESTO ES LO INTERESANTE===============//
                 // Forma de buscar palabras (SIEMPRE EN MINUSCULA)
 
-                //Pasar lo que buscamos a minúscula
-                cin >> palabra_buscada;
-                for (int x = 0; x < palabra_buscada.size(); x++)
-                            palabra_buscada[x] = tolower(palabra_buscada[x]);
-                ItemCancion *p;
+                std::cin.ignore();
+                getline(cin,frase);
                 
-//                
-//                if (letra == "A")
-//                    p = tablaAutores.search(djb2((char*) palabra_buscada.c_str()));
-//                else
-//                    p = tablaTitulos.search(djb2((char*) palabra_buscada.c_str()));
-//                
-//                if (p) {
-//                    vector<Song*> *songs = p->getSongs();
-//                    cout << endl;
-//                    cout << "Canciones con la palabra " << palabra_buscada << endl;
-//                    for (int i = 0; i < songs->size(); i++)
-//                        cout << songs->at(i)->GetCode() << " - " <<
-//                                songs->at(i)->GetArtist() << " - " <<
-//                                songs->at(i)->GetTitle() << endl;
-//                    cout << "Introduce el código de la canción deseada: ";
-//                    cin >> cancion;
-//                } else {
-//                    cout << "\n No hay canciones con la palabra " << palabra_buscada << endl;;
-//                    
-//                    //Para que no la de por repetida al no introducir nada
-//                    cancion = 0; 
-//                }
+                //Pasar lo que buscamos a minúscula
+                for (int x = 0; x < frase.size(); x++)
+                            frase[x] = tolower(frase[x]);
+
+                int num_palabras = ContarPalabras(frase);
+                cout << "La cadena tiene " << num_palabras << " palabras";
+                
+                
+                // Comienza la búsqueda
+                long key = djb2((char*) frase.c_str());
+                unordered_map<long, ItemCancion>::iterator it_aux;
+                
+                if (letra == "A") {
+                    it_aux = tablaAutores.find(key);
+                    if (it_aux != tablaAutores.end()) {
+                        map<int, Song*> *map_canciones = it_aux->second.getSongs();
+                        for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                            cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                        }
+                        
+                    cout << "Introduce el código de la cancion que te interesa: ";
+                    cin >> cancion;
+                    } else {
+                        cout << "No se ha encontrado ninguna canción." << endl;
+                        //Para que no la de por repetida al no introducir nada
+                        cancion = 0;
+                    }
+                } else {
+                    it_aux = tablaTitulos.find(key);
+                    if (it_aux != tablaTitulos.end()) {
+                        map<int, Song*> *map_canciones = it_aux->second.getSongs();
+                        for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
+                            cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                        }
+                        
+                    cout << "Introduce el código de la cancion que te interesa: ";
+                    cin >> cancion;
+                    } else {
+                        cout << "No se ha encontrado ninguna canción." << endl;
+                        //Para que no la de por repetida al no introducir nada
+                        cancion = 0; 
+                    }
+                }   
             } 
 
             Request peticion(cancion);
@@ -292,37 +301,32 @@ long djb2 (char *str) {
     return hash;
 }
 
+int ContarPalabras (string frase) {
+    int nSpaces = 0;
+    unsigned int i = 0;
+
+    // Omitir espacios en blanco al principio
+    while(isspace(frase.at(i)))
+        i++;
+
+    for(; i < frase.length(); i++) {
+        if(isspace(frase.at(i))) {
+            nSpaces++;
+
+        // Omitir espacios duplicados. Si encontramos un Null, estamos al final
+        while(isspace(frase.at(i++)))
+            if(frase.at(i) == '\0')
+                nSpaces--;
+        }
+    }
+
+    // Número de pabras es el número de espacios +1
+    return nSpaces + 1;
+}
+
 int main(int argc, char** argv) {
     RadioApp app;
     app.solicitarCanciones();
-
-    
-    /* Pruebas varias, NO BORRAR
-     * 
-     * 
-    // # de palabras en Autores 410
-    // # de palabras en Titulos 821
-    cout << "70%" << endl;
-    cout << "El primo más cercano a 410*1.7=" << 410*1.7 << " es: " << getPrime(410*1.7) << endl;
-    cout << "El primo más cercano a 821*1.7=" << 821*1.7 << " es: " << getPrime(821*1.7) << endl;
-    cout << "75%" << endl;
-    cout << "El primo más cercano a 410*1.75=" << 410*1.75 << " es: " << getPrime(410*1.75) << endl;
-    cout << "El primo más cercano a 821*1.75=" << 821*1.75 << " es: " << getPrime(821*1.75) << endl;
-    cout << "80%" << endl;
-    cout << "El primo más cercano a 410*1.80=" << 410*1.8 << " es: " << getPrime(410*1.8) << endl;
-    cout << "El primo más cercano a 821*1.80=" << 821*1.8 << " es: " << getPrime(821*1.8) << endl;
-    cout << "85%" << endl;
-    cout << "El primo más cercano a 410*1.85=" << 410*1.85 << " es: " << getPrime(410*1.85) << endl;
-    cout << "El primo más cercano a 821*1.85=" << 821*1.85 << " es: " << getPrime(821*1.85) << endl;
-    cout << "90%" << endl;
-    cout << "El primo más cercano a 410*1.9=" << 410*1.9 << " es: " << getPrime(410*1.9) << endl;
-    cout << "El primo más cercano a 821*1.9=" << 821*1.9 << " es: " << getPrime(821*1.9) << endl;
-    
-    for (int i = 0; i < 1500; i++)
-        cout << ((210728963387 % 1553) + i*(1069 + 210728963387 % 1069)) % 1553 << endl;
-     * 
-     * 
-     */
     
     return 0;
 }
