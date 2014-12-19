@@ -14,6 +14,10 @@
 using namespace std;
 
 class ItemCancion {
+private:
+    string              palabra;
+    map<int, Song*>     canciones;
+    
 public:
     ItemCancion             () : palabra(), canciones() {};
     ItemCancion             (string word, Song *s) : palabra(word) {
@@ -31,9 +35,12 @@ public:
     void                addSong         (Song *s);
     map<int, Song*> *   getSongs        ();
     
-private:
-    string              palabra;
-    map<int, Song*>     canciones;
+    void print_class(ostream &st) {
+        st << "Palabra: " << palabra << " Canciones: \n";
+        for (map<int, Song*>::iterator it = canciones.begin(); it != canciones.end(); ++it) {
+            st << "Codigo: " << it->first << " Titulo: " << it->second->GetTitle() << " Artista: " << it->second->GetArtist() << " \n";
+        }
+    };
 };
 
 ItemCancion::ItemCancion(const ItemCancion& orig) {

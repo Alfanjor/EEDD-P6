@@ -14,6 +14,7 @@
 #include <map>
 #include <unordered_map>
 #include <stdlib.h>
+#include <algorithm>
 
 #include "tinythread.h"
 #include "millisleep.h"
@@ -26,7 +27,6 @@ using namespace tthread;
 
 void CargarListaCaciones(map<int, Song> &map_Canciones);
 long djb2 (char *str);
-int ContarPalabras (string frase);
 
 class RadioApp {
     map<int, Song> map_Canciones;
@@ -66,12 +66,9 @@ class RadioApp {
 
 public:
 
-    RadioApp() : threadReproducirCanciones(hebraReproducirCanciones, this) {
+    RadioApp() : threadReproducirCanciones(hebraReproducirCanciones, this), tablaAutores(691), tablaTitulos(1381) {
         pinchar = true;
         CargarListaCaciones(map_Canciones);
-        
-        tablaAutores.reserve(691);
-        tablaTitulos.reserve(1381);
         
         // Construcción de las tablas de dispersión
         for (map<int, Song>::iterator it = map_Canciones.begin(); it != map_Canciones.end(); ++it) {
@@ -174,53 +171,60 @@ public:
                 cout << "Introuce la palabra que quieres buscar: ";
                 string frase;
                 
-                //=================ESTO ES LO INTERESANTE===============//
-                // Forma de buscar palabras (SIEMPRE EN MINUSCULA)
-
                 std::cin.ignore();
                 getline(cin,frase);
                 
                 //Pasar lo que buscamos a minúscula
                 for (int x = 0; x < frase.size(); x++)
                             frase[x] = tolower(frase[x]);
-
-                //int num_palabras = ContarPalabras(frase);
                 
                 // Comienza la búsqueda
-                unordered_map<long, ItemCancion>::iterator it_aux;
                 string palabra;
                 stringstream ls_frase(frase);
+                
+                unordered_map<long, ItemCancion>::iterator it_aux;
+                map<int, Song*> result_anterior;
+                map<int, Song*> result;
+                int contador = 1;
                 
                 if (letra == "A") {
                     while (getline(ls_frase, palabra, ' ')) {
                         long key = djb2((char*) palabra.c_str());
                         it_aux = tablaAutores.find(key);
                         if (it_aux != tablaAutores.end()) {
-                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
-                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
-                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                            if (contador > 1) {
+                                set_intersection(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end(),
+                                                result_anterior.begin(), result_anterior.end(),
+                                                inserter(result, result.begin()));
+                            } else {
+                                result.insert(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end());
                             }
-                        } else {
-                            cout << "No se ha encontrado ninguna canción "
-                                    "para el Artista " << palabra << endl;
+                            result_anterior = result;
+                            result.clear();
+                            contador++;
                         }
                     }
-
                 } else {
                     while (getline(ls_frase, palabra, ' ')) {
                         long key = djb2((char*) palabra.c_str());
                         it_aux = tablaTitulos.find(key);
                         if (it_aux != tablaTitulos.end()) {
-                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
-                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) {
-                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
+                            if (contador > 1) {
+                                set_intersection(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end(),
+                                                result_anterior.begin(), result_anterior.end(),
+                                                inserter(result, result.begin()));
+                            } else {
+                                result.insert(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end());
                             }
-                        } else {
-                            cout << "No se ha encontrado ninguna canción "
-                                    "para el Título " << palabra << endl;
+                            result_anterior = result;
+                            result.clear();
+                            contador++;
                         }
                     }
                 }
+                
+                for (map<int, Song*>::iterator it_canciones = result_anterior.begin(); it_canciones != result_anterior.end(); ++it_canciones) 
+                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
                 
                 cout << "Introduce el código de la cancion que te interesa: ";
                 cin >> cancion;
@@ -300,29 +304,6 @@ long djb2 (char *str) {
     while (c = *str++)
         hash = ((hash << 5) + hash) + c;
     return hash;
-}
-
-int ContarPalabras (string frase) {
-    int nSpaces = 0;
-    unsigned int i = 0;
-
-    // Omitir espacios en blanco al principio
-    while(isspace(frase.at(i)))
-        i++;
-
-    for(; i < frase.length(); i++) {
-        if(isspace(frase.at(i))) {
-            nSpaces++;
-
-        // Omitir espacios duplicados. Si encontramos un Null, estamos al final
-        while(isspace(frase.at(i++)))
-            if(frase.at(i) == '\0')
-                nSpaces--;
-        }
-    }
-
-    // Número de pabras es el número de espacios +1
-    return nSpaces + 1;
 }
 
 int main(int argc, char** argv) {

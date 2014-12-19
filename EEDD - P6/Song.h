@@ -26,6 +26,10 @@ public:
     Song(int code, string title, string artist) : _code(code), _artist(artist),
         _title(title) {};
     ~Song() {};
+    
+    void print_class(ostream &st) {
+        st << "Codigo: " << _code << " Artista: " << _artist << " Titulo: " << _title << "\n";
+    };
 
     void SetTitle(string _title) {
         this->_title = _title;
