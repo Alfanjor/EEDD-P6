@@ -34,6 +34,7 @@ public:
     string              getPalabra      () const;
     void                addSong         (Song *s);
     map<int, Song*> *   getSongs        ();
+    
     void print_class(ostream &st) {
         st << "Palabra: " << palabra << " Canciones: \n";
         for (map<int, Song*>::iterator it = canciones.begin(); it != canciones.end(); ++it) {

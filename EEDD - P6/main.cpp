@@ -14,6 +14,7 @@
 #include <map>
 #include <unordered_map>
 #include <stdlib.h>
+#include <algorithm>
 
 #include "tinythread.h"
 #include "millisleep.h"
@@ -178,40 +179,52 @@ public:
                             frase[x] = tolower(frase[x]);
                 
                 // Comienza la búsqueda
-                unordered_map<long, ItemCancion>::iterator it_aux;
                 string palabra;
                 stringstream ls_frase(frase);
+                
+                unordered_map<long, ItemCancion>::iterator it_aux;
+                map<int, Song*> result_anterior;
+                map<int, Song*> result;
+                int contador = 1;
                 
                 if (letra == "A") {
                     while (getline(ls_frase, palabra, ' ')) {
                         long key = djb2((char*) palabra.c_str());
                         it_aux = tablaAutores.find(key);
                         if (it_aux != tablaAutores.end()) {
-                            cout << "Canciones con la palabra: " << palabra << endl;
-                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
-                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones)
-                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
-                        } else {
-                            cout << "No se ha encontrado ninguna canción "
-                                    "para el Artista " << palabra << endl;
+                            if (contador > 1) {
+                                set_intersection(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end(),
+                                                result_anterior.begin(), result_anterior.end(),
+                                                inserter(result, result.begin()));
+                            } else {
+                                result.insert(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end());
+                            }
+                            result_anterior = result;
+                            result.clear();
+                            contador++;
                         }
                     }
-
                 } else {
                     while (getline(ls_frase, palabra, ' ')) {
                         long key = djb2((char*) palabra.c_str());
                         it_aux = tablaTitulos.find(key);
                         if (it_aux != tablaTitulos.end()) {
-                            cout << "Canciones con la palabra: " << palabra << endl;
-                            map<int, Song*> *map_canciones = it_aux->second.getSongs();
-                            for (map<int, Song*>::iterator it_canciones = map_canciones->begin(); it_canciones != map_canciones->end(); ++it_canciones) 
-                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
-                        } else {
-                            cout << "No se ha encontrado ninguna canción "
-                                    "para el Título " << palabra << endl;
+                            if (contador > 1) {
+                                set_intersection(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end(),
+                                                result_anterior.begin(), result_anterior.end(),
+                                                inserter(result, result.begin()));
+                            } else {
+                                result.insert(it_aux->second.getSongs()->begin(), it_aux->second.getSongs()->end());
+                            }
+                            result_anterior = result;
+                            result.clear();
+                            contador++;
                         }
                     }
                 }
+                
+                for (map<int, Song*>::iterator it_canciones = result_anterior.begin(); it_canciones != result_anterior.end(); ++it_canciones) 
+                                cout << it_canciones->second->GetCode() << " - " << it_canciones->second->GetTitle() << " - " << it_canciones->second->GetArtist() << endl;
                 
                 cout << "Introduce el código de la cancion que te interesa: ";
                 cin >> cancion;
